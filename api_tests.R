@@ -47,7 +47,6 @@ ggplot(my_hr_min, aes(x = time)) +
 
 
 # We can get steps too
-
 my_steps <- get_steps(
   config, 
   date = 'today',
@@ -59,3 +58,15 @@ ggplot(my_steps, aes(x = time)) +
   geom_point(aes(y = steps), color = "steelblue", alpha = 0.85, size = 0.75) + 
   theme_minimal()
 
+
+# Or elevation...This one's kinda funky though.
+my_elevation <- get_elevation(
+  config, 
+  date = 'today',
+  startTime = "00:00",
+  endTime = "23:59"
+)
+
+ggplot(my_elevation, aes(x = time)) + 
+  geom_point(aes(y = elevation), color = "steelblue", alpha = 0.85, size = 0.75) + 
+  theme_minimal()

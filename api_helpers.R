@@ -122,9 +122,8 @@ get_activity <- function(
 #' @return A dataframe with two rows. time of the day in seconds and steps for the previous minute. 
 #' @export
 #' @examples
-#' my_hr <- get_heart_rate(
+#' my_steps <- get_steps(
 #'   config = conf, 
-#'   resolution = 'seconds',
 #'   date = 'today',
 #'   startTime = "00:00",
 #'   endTime = "23:59"
@@ -148,5 +147,43 @@ get_steps <- function(
     as_data_frame() %>% 
     mutate(time = as.numeric(hms(time))) %>% 
     rename(steps = value)
+}
+
+
+
+
+#' Grabs time series data at 1 minute intervals on elevation. It's important to note that this is a relative measure and not feet above sea-level.
+#' @param config An oauth config object setup with your token. 
+#' @param date The day for which you want data. Defaults to the current day. Day format is yyyy-MM-dd. 
+#' @param startTime HH:MM 24 hour time for when you want to start getting data. Defaults to midnight. 
+#' @param endTime HH:MM 24 hour time for when you want to stop getting data. Defaults to 23:59.  
+#' @return A dataframe with two rows. time of the day in seconds and elevation at timepoint.
+#' @export
+#' @examples
+#' my_elevation <- get_elevation(
+#'   config = conf, 
+#'   date = 'today',
+#'   startTime = "00:00",
+#'   endTime = "23:59"
+#'  )
+get_elevation <- function(
+  config, 
+  date = 'today',
+  startTime = "00:00",
+  endTime = "23:59"
+){
+  #grab activity result from the api. 
+  query_result <- get_activity(
+    config, 
+    type = 'elevation',
+    date = date,
+    startTime = startTime,
+    endTime = endTime
+  )
+  
+  query_result$`activities-elevation-intraday`$dataset %>% 
+    as_data_frame() %>% 
+    mutate(time = as.numeric(hms(time))) %>% 
+    rename(elevation = value)
 }
 
