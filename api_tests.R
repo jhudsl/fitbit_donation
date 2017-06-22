@@ -45,3 +45,17 @@ ggplot(my_hr_min, aes(x = time)) +
   geom_line(aes(y = heart_rate), color = "steelblue", alpha = 0.85, size = 0.75) + 
   theme_minimal()
 
+
+# We can get steps too
+
+my_steps <- get_steps(
+  config, 
+  date = 'today',
+  startTime = "00:00",
+  endTime = "23:59"
+)
+
+ggplot(my_steps, aes(x = time)) + 
+  geom_point(aes(y = steps), color = "steelblue", alpha = 0.85, size = 0.75) + 
+  theme_minimal()
+

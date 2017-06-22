@@ -75,3 +75,78 @@ make_config <- function(
   config(token = token)
 }
 
+
+
+
+
+
+#' A general interface to the activity intraday api. Used in confunction with wrapper functions. 
+#' @param config An oauth config object setup with your token. 
+#' @param type Which activity api you desire. Options are calories, steps, distance, floors, and elevation. 
+#' @param date The day for which you want data. Defaults to the current day. Day format is yyyy-MM-dd. 
+#' @param startTime HH:MM 24 hour time for when you want to start getting data. Defaults to midnight. 
+#' @param endTime HH:MM 24 hour time for when you want to stop getting data. Defaults to 23:59.  
+#' @param resolution Can choose between "1min" and "15min" although I'm not sure why you'd ever want 15 minute. 
+#' @return A dataframe with two rows. time of the day in seconds and beats per minute for that timepoint. 
+#' @export
+#' @examples
+#' query_result <- get_activity(
+#'   config, 
+#'   type = 'calories',
+#'   date = date,
+#'   startTime = startTime,
+#'   endTime = endTime
+#' )
+get_activity <- function(
+  config, 
+  type = 'steps',
+  date = 'today',
+  startTime = "00:00",
+  endTime = "23:59",
+  resolution = "1min"
+){
+  query_string <- sprintf("https://api.fitbit.com/1/user/-/activities/%s/date/%s/1d/%s/time/%s/%s.json",
+                          type, date, resolution, startTime, endTime)
+  
+  GET(query_string, config = config) %>% 
+    content(as="text") %>% 
+    fromJSON() 
+}
+
+
+#' Grabs time series data at 1 minute intervals on steps. 
+#' @param config An oauth config object setup with your token. 
+#' @param date The day for which you want data. Defaults to the current day. Day format is yyyy-MM-dd. 
+#' @param startTime HH:MM 24 hour time for when you want to start getting data. Defaults to midnight. 
+#' @param endTime HH:MM 24 hour time for when you want to stop getting data. Defaults to 23:59.  
+#' @return A dataframe with two rows. time of the day in seconds and steps for the previous minute. 
+#' @export
+#' @examples
+#' my_hr <- get_heart_rate(
+#'   config = conf, 
+#'   resolution = 'seconds',
+#'   date = 'today',
+#'   startTime = "00:00",
+#'   endTime = "23:59"
+#'  )
+get_steps <- function(
+  config, 
+  date = 'today',
+  startTime = "00:00",
+  endTime = "23:59"
+){
+  #grab activity result from the api. 
+  query_result <- get_activity(
+    config, 
+    type = 'steps',
+    date = date,
+    startTime = startTime,
+    endTime = endTime
+  )
+
+  query_result$`activities-steps-intraday`$dataset %>% 
+    as_data_frame() %>% 
+    mutate(time = as.numeric(hms(time))) %>% 
+    rename(steps = value)
+}
+
