@@ -10,15 +10,11 @@ library(jsonlite)
 fitbit_endpoint <- oauth_endpoint(  authorize = "https://www.fitbit.com/oauth2/authorize",  
                                     access = "https://api.fitbit.com/oauth2/token")
 
-# Personal App info
-myapp <- oauth_app( appname = "data_access",
-                    key = "2287QM",
-                    secret = "6a99b80ecf85cbe33d59c174e9c74748")
+source("api_keys.R") #contains a list with strings storing the below values. 
+myapp <- oauth_app( appname = api_keys$appname,
+                    key = api_keys$key,
+                    secret = api_keys$secret)
 
-#Jeff's app info. These values aren't truly secret so they can be exposed. 
-# myapp <- oauth_app( appname = "data_access",
-#                     key = "228RXV",
-#                     secret = "ff4ae11f55374f9688f319320c3cb4e1")
 
 #What the heck, why do I need this?! Pull request will be sent
 Sys.setenv("HTTR_SERVER_PORT" = "1410")
