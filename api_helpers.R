@@ -1,44 +1,28 @@
-# Helped functions to interface with fitbits api
+# Helper functions to interface with fitbits api
 
-#' Grabs heart-rate data from the fitbit api. Can do anything the API will give you. 
-#' @param config An oauth config object setup with your token. 
-#' @param resolution Can be set to "seconds" for 1 second intervals or "minutes" for 1 minute intervals. Defaults to seconds. 
-#' @param date The day for which you want data. Defaults to the current day. Day format is yyyy-MM-dd. 
-#' @param startTime HH:MM 24 hour time for when you want to start getting data. Defaults to midnight. 
-#' @param endTime HH:MM 24 hour time for when you want to stop getting data. Defaults to 23:59.  
-#' @return A dataframe with two rows. time of the day in seconds and beats per minute for that timepoint. 
-#' @export
-#' @examples
-#' my_hr <- get_heart_rate(
-#'   config = conf, 
-#'   resolution = 'seconds',
-#'   date = 'today',
-#'   startTime = "00:00",
-#'   endTime = "23:59"
-#'  )
-get_heart_rate <- function(
-  config, 
-  resolution = 'seconds',
-  date = 'today',
-  startTime = "00:00",
-  endTime = "23:59"
-){
-  res <- ifelse(resolution == "seconds", "1sec", "1min")
-  query_string <- sprintf("https://api.fitbit.com/1/user/-/activities/heart/date/%s/1d/%s/time/%s/%s.json",
-                          date, res, startTime, endTime)
-  GET(query_string, config = config) %>% 
-    content(as="text") %>% 
-    fromJSON() %>% 
-    .$`activities-heart-intraday` %>% 
-    .$dataset %>% 
-    mutate(time = as.numeric(hms(time))) %>% 
-    rename(heart_rate = value)
+library(httr)
+library(jsonlite)
+library(tidyverse)
+library(lubridate)
+
+#' The httr GET likes for tokens to be in its own proprietary format which ours are not. This function will perform the correct get request based upon either a token string (from shinyauth) or a token object (from httr).
+#' @param query_string The query string to be sent in. See given API docs for details. 
+#' @param token_or_conf Can be either a string token (e.g. from shinyauth) or a config object (e.g. what you get from httr's normal oauth function). 
+#' @return A nice big blob of whatever your get request returns.
+
+fitbit_get <- function(query_string,token_or_conf){
+  
+  if(class(token_or_conf) == "character"){
+    return(
+      httr::GET(query_string, httr::add_headers( Authorization = paste("Bearer", token_or_conf) ) )
+    )
+  } else {
+    return(
+      GET(query_string, config = token_or_conf)
+    )
+  }
+  
 }
-
-
-
-
-
 
 
 
@@ -79,6 +63,41 @@ make_config <- function(
 
 
 
+#' Grabs heart-rate data from the fitbit api. Can do anything the API will give you. 
+#' @param config An oauth config object setup with your token. 
+#' @param resolution Can be set to "seconds" for 1 second intervals or "minutes" for 1 minute intervals. Defaults to seconds. 
+#' @param date The day for which you want data. Defaults to the current day. Day format is yyyy-MM-dd. 
+#' @param startTime HH:MM 24 hour time for when you want to start getting data. Defaults to midnight. 
+#' @param endTime HH:MM 24 hour time for when you want to stop getting data. Defaults to 23:59.  
+#' @return A dataframe with two rows. time of the day in seconds and beats per minute for that timepoint. 
+#' @export
+#' @examples
+#' my_hr <- get_heart_rate(
+#'   config = conf, 
+#'   resolution = 'seconds',
+#'   date = 'today',
+#'   startTime = "00:00",
+#'   endTime = "23:59"
+#'  )
+get_heart_rate <- function(
+  token, 
+  resolution = 'seconds',
+  date = 'today',
+  startTime = "00:00",
+  endTime = "23:59"
+){
+  res <- ifelse(resolution == "seconds", "1sec", "1min")
+  query_string <- sprintf("https://api.fitbit.com/1/user/-/activities/heart/date/%s/1d/%s/time/%s/%s.json",
+                          date, res, startTime, endTime)
+  fitbit_get(query_string, token) %>% 
+    content(as="text") %>% 
+    fromJSON() %>% 
+    .$`activities-heart-intraday` %>% 
+    .$dataset %>% 
+    mutate(time = as.numeric(hms(time))) %>% 
+    rename(heart_rate = value)
+}
+
 
 #' A general interface to the activity intraday api. Used in confunction with wrapper functions. 
 #' @param config An oauth config object setup with your token. 
@@ -98,7 +117,7 @@ make_config <- function(
 #'   endTime = endTime
 #' )
 get_activity <- function(
-  config, 
+  token, 
   type = 'steps',
   date = 'today',
   startTime = "00:00",
@@ -108,7 +127,7 @@ get_activity <- function(
   query_string <- sprintf("https://api.fitbit.com/1/user/-/activities/%s/date/%s/1d/%s/time/%s/%s.json",
                           type, date, resolution, startTime, endTime)
   
-  GET(query_string, config = config) %>% 
+  fitbit_get(query_string, token) %>% 
     content(as="text") %>% 
     fromJSON() 
 }
@@ -129,14 +148,14 @@ get_activity <- function(
 #'   endTime = "23:59"
 #'  )
 get_steps <- function(
-  config, 
+  token, 
   date = 'today',
   startTime = "00:00",
   endTime = "23:59"
 ){
   #grab activity result from the api. 
   query_result <- get_activity(
-    config, 
+    token, 
     type = 'steps',
     date = date,
     startTime = startTime,
@@ -150,6 +169,70 @@ get_steps <- function(
 }
 
 
+#' Grabs both heartrate and steps for a given date at 1 minute intervals. 
+#' @param config An oauth config object setup with your token. 
+#' @param date The day for which you want data. Defaults to the current day. Day format is yyyy-MM-dd. 
+#' @return A dataframe with two rows. time of the day in seconds and steps for the previous minute. 
+#' @export
+#' @examples
+#' my_steps <- get_steps(
+#'   config = conf, 
+#'   date = 'today',
+#'   startTime = "00:00",
+#'   endTime = "23:59"
+#'  )
+get_day_profile <- function(
+  token, 
+  date = 'today'
+){
+  heart_rate <- get_heart_rate(
+    token, 
+    resolution = 'minutes',
+    date = date
+  )
+  
+  steps <- get_steps(
+    token, 
+    date = date
+  )
+    
+  heart_rate %>% 
+    mutate(type = "heart rate") %>% 
+    rename(value = heart_rate) %>% 
+    bind_rows(
+      steps %>% 
+        mutate(type = "steps") %>% 
+        rename(value = steps) 
+    ) %>% 
+    mutate(date = ifelse(date == "today", as.character(Sys.Date()), date))
+}
+
+#' Grabs both heartrate and steps for a each day in a provided vector at 1 minute intervals. 
+#' @param config An oauth config object setup with your token. 
+#' @param desired_days A character vector of dates in yyyy-MM-dd format.
+#' @return A dataframe with two rows. time of the day in seconds and steps for the previous minute. 
+#' @export
+#' @examples
+#' my_steps <- get_steps(
+#'   config = conf, 
+#'   date = 'today',
+#'   startTime = "00:00",
+#'   endTime = "23:59"
+#'  )
+get_interval_profile <- function(
+  token, 
+  desired_days
+){
+  
+  days_data <- get_day_profile(token, date = desired_days[1])
+  for(day in desired_days[-1]){
+    days_data <- days_data %>% 
+      bind_rows(
+        get_day_profile(token, date = day)
+      )
+  }
+  days_data
+}
 
 
 #' Grabs time series data at 1 minute intervals on elevation. It's important to note that this is a relative measure and not feet above sea-level.
