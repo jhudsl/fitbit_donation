@@ -6,22 +6,34 @@ library(fitbitr)
 library(shinyjs)
 library(rdrop2)
 
+# UI elements
 source('shiny_app/tabs/welcomePanel.R')
 source('shiny_app/tabs/tagPanel.R')
 source('shiny_app/tabs/reportPanel.R')
 source('shiny_app/tabs/downloadPanel.R')
 
+# Server-side helpers
 source('shiny_app/helperFuncs/reportGenerator.R')
 source("shiny_app/helperFuncs/dropboxHelpers.R")
 source("shiny_app/helperFuncs/downloadDays.R")
 
 source("shiny_app/api_keys.R")
 
+appCSS <- "
+body {
+   font-family: 'optima';
+  }
+  
+  .container-fluid { 
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+"
 ui <- fluidPage(
   useShinyjs(),
   title = "Quantified Whole",
   tags$head(
-    tags$style(type="text/css", ".container-fluid {  max-width: 1000px;margin: 0 auto;}")
+    tags$style(type="text/css", appCSS)
   ),
   tabsetPanel(
     tabPanel( "Welcome",           welcomePanel() ),

@@ -31,11 +31,18 @@ generateReport <- function(data){
 }
 
 # generateReport(data)
-
+reportCSS <- "
+.shiny-image-output img { 
+  width: 90%; 
+  border: 1px solid black; 
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  margin-bottom: 35px;
+}
+"
 activityReportUI <- function(id){
   ns <- NS(id)
   div(
-    tags$style(type="text/css", ".shiny-image-output img { width: 100%;}"),
+    tags$style(type="text/css", reportCSS),
     imageOutput(ns('userReport'), width = "100%")
   )
 }
