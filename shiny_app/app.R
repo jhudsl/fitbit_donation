@@ -10,10 +10,12 @@ source('shiny_app/tabs/welcomePanel.R')
 source('shiny_app/tabs/tagPanel.R')
 source('shiny_app/tabs/reportPanel.R')
 source('shiny_app/tabs/downloadPanel.R')
-source('shiny_app/tabs/report_generator.R')
-source("shiny_app/heperFuncs/api_keys.R")
-source("shiny_app/heperFuncs/dropboxHelpers.R")
-source("shiny_app/heperFuncs/downloadDays.R")
+
+source('shiny_app/helperFuncs/reportGenerator.R')
+source("shiny_app/helperFuncs/dropboxHelpers.R")
+source("shiny_app/helperFuncs/downloadDays.R")
+
+source("shiny_app/api_keys.R")
 
 ui <- fluidPage(
   useShinyjs(),
@@ -64,6 +66,12 @@ server <- function(input, output) {
     fitbitDownload <- downloadDays(token = state$userToken, numberOfDays = state$numberOfDays)
     state$desiredDays <- fitbitDownload$days
     state$daysProfile <- fitbitDownload$data
+    
+    # Set up the dropbox file upload temp locations. 
+    dbFileNames <- fileNamer(sessionID, state$desiredDays[1], state$desiredDays[state$numberOfDays])
+    state$rawFile <- dbFileNames("raw")
+    state$tagFile <- dbFileNames("tag")
+
   })
   
   # When the users day profile downloads...
@@ -74,17 +82,8 @@ server <- function(input, output) {
                            'tagger',
                            data = state$daysProfile)
     
-    # upload data to dropbox
-    print("Uploading to dropbox")
-    
-    uploadDataToDropbox(
-      state$daysProfile, 
-      dbToken, 
-      sessionID, 
-      type = "raw",
-      start = state$desiredDays[1],
-      end = state$desiredDays[length(state$desiredDays)]
-    )
+    # Upload the raw data to dropbox. 
+    uploadDataToDropbox(state$daysProfile, dbToken, state$rawFile)
     
     # Generate a report plot.
     output$reportPlot <- callModule(
@@ -96,6 +95,8 @@ server <- function(input, output) {
     # Watch for users tagging stuff. 
     observeEvent(userTags(), {
       state$activityTags <- userTags()
+      #Upload tags to the dropbox tags file 
+      uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
     })
     
     # Update the downloads page with actual data. 
