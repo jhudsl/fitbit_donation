@@ -1,5 +1,4 @@
 
-
 # Defines what we store per individual in our firebase database. 
 # We have all the demographic info inside fitbit so we will just grab their name 
 # and also store info on when they logged in and what days weve downloaded for them. 
@@ -11,7 +10,7 @@ userInfoTemplate <- function(userInfoList){
   putBody[[userId]] <- list(
     fullName = userInfoList$fullName,
     firstName = userInfoList$firstName,
-    logins = c( Sys.Date() ),
+    logins = c( as.character(Sys.Date()) ),
     daysPulled = c()
   )
   
@@ -52,3 +51,26 @@ getUserData <- function(firebase_token, userId, userInfoList){
   result
 }
 
+# Adds a login instance to a users records. Defaults to moment of call. 
+addLoginTime <- function(firebase_token, userId, loginTime = as.character(Sys.time())) {
+  
+  queryUrl <- sprintf("https://fitbitdatadonation.firebaseio.com/users/%s/logins.json", userId)
+  
+  newLogin <- httr::POST(url = queryUrl,
+                          body = list(time = loginTime),
+                          config = httr::config(token = firebase_token),
+                          encode = "json") 
+  
+  if( httr::status_code(newLogin) != 200) {
+    stop("Something seems to have gone wrong")
+  }
+  
+  return("successfully updated logins")
+}
+
+# returns a vector of login times for a user. 
+getLoginTimes <- function(firebaseUserData){
+  firebaseUserData$logins %>% unlist() %>% as.vector()
+}
+
+# getUserData(firebase_token, userId, userInfoList) %>% getLoginTimes()
