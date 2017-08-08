@@ -12,7 +12,7 @@ welcomePanel <- function(){
     p("Once we have enough data from users we will start generating activity predictions based upon your data. For instance the app may predict you did interval training between 7 and 8 am followed by yoga at 8:30 to 9."),
     h3("Okay, I'm ready"),
     p("Just click the login button below and navigate over to the tag tab to get started!"),
-    shinyauthUI("fitbit_login"),
+    shinyLoginUI("fitbit_login"),
     p(
       a(href = "http://jhudatascience.org/", img(src = "https://raw.githubusercontent.com/jhudsl/drawyourprior/master/WWW/jhu_logo.png", height = 40) ),
       align= "right"
