@@ -1,5 +1,4 @@
 library(shiny)
-# library(shinyauth)
 library(tidyverse)
 library(lubridate)
 library(fitbitr)
@@ -16,6 +15,7 @@ source('shiny_app/tabs/downloadPanel.R')
 source('shiny_app/helperFuncs/reportGenerator.R')
 source("shiny_app/helperFuncs/dropboxHelpers.R")
 source("shiny_app/helperFuncs/downloadDays.R")
+source("shiny_app/helperFuncs/loadApiCredentials.R")
 
 source("shiny_app/api_keys.R")
 
@@ -85,7 +85,7 @@ server <- function(input, output) {
     userInfo  <- getUserInfo(state$userToken)
     state$userName <- userInfo$fullName
     state$userID <- userInfo$encodedId
-    
+    browser()
     fitbitDownload <- downloadDays(token = state$userToken, numberOfDays = state$numberOfDays)
     state$desiredDays <- fitbitDownload$days
     state$daysProfile <- fitbitDownload$data
