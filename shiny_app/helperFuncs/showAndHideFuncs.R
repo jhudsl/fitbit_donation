@@ -6,12 +6,14 @@ shinyjs.disableTab = function(selector) {
     e.preventDefault();
     return false;
   });
+  tab.attr('title', 'Need to be logged in!')
   tab.addClass('disabled');
 }
 
 
 shinyjs.enableTab = function(selector) {
   var tab = $(selector.selector);
+  tab.attr('title', '')
   tab.unbind('click.tab');
   tab.removeClass('disabled');
 }

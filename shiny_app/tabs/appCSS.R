@@ -51,7 +51,7 @@ body {
 .disabled {
   background-color: lightgrey !important;
   color: darkgrey !important;
-  cursor: not-allowed !important;
+  cursor: default !important;
   border-color: #aaa !important;
 }
 "
