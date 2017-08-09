@@ -1,0 +1,82 @@
+---
+title: "CodeJournal"
+author: "Nick Strayer"
+date: "8/9/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is a document I will keep open when building this app to record things I've found useful and not useful in shiny development.
+
+## Code modularization
+
+When possible breaking code out into functions that can be sourced at the head of the `app.R` file is good. 
+One important thing to consider is making the modules as independent of the overall app as possible. This is an issue as any variables defined in the source files at the head are automatically
+seen by every single session. You can deal with this by putting the `source(...)` inside your server or ui functions with the option `local = TRUE` added to it. This creates unique copies of the functions/variables defined for each session within their given session. 
+
+e.g. 
+__bad__
+```{r}
+ui <- fluidPage(title = "My App",
+  tabsetPanel(tabPanel("Welcome",
+    div(
+      div(id = "welcome_header",
+      h1("Quantified Whole"),
+      div(id = "login_bar",
+      shinyLoginUI("fitbit_login"),
+      textOutput('userName'))
+    )
+  ),
+  ...))
+```
+
+__good__
+`/app.R`
+```{r}
+source("welcomePanel.R")
+ui <- fluidPage(
+  title = "My App",
+  tabsetPanel(
+    tabPanel( "Welcome",  welcomePanel() ),
+    ...
+  )
+)
+```
+
+`/welcomePanel.R`
+```{r}
+source("welcomePanel.R")
+welcomePanel <- function(){
+  div(
+    div( id = "welcome_header",
+       h1("Quantified Whole"),
+       div(id = "login_bar",
+         shinyLoginUI("fitbit_login"),
+         textOutput('userName')
+        )
+    )
+}
+```
+
+## Minimizing reactive components. 
+
+From the RStudio article [execution scheduling](http://shiny.rstudio.com/articles/execution-scheduling.html):
+
+> Once all the descendants are invalidated, a flush occurs. When this happens, all invalidated observers re-execute....
+  If a flush occurs when multiple endpoints are invalidated, there isn’t a guaranteed order that the endpoints will execute, so nthValue may run before nthValueInv, or vice versa
+
+This means, when defining a reactive chunk of code, use the minimum reactive values possible to render it properly. This will help avoid it being unneccesarily run again. Also pay attention to the order of dependency to not get caught in temporal problems.
+
+## Use reactive({}) to avoid recalculations. 
+
+Wrap functions that depend on reactive values or inputs in a `reactive({...})` function to avoid recalculation unneccesarily. Shiny will know that the result of the function hasnt changed since the last time it was used so it won't recalculate it. 
+
+Probably good to wrap values needed for modules inside reactive tags so then they can be fed to modules at once without potentially rerunning for each one. Also helps make code more functional. 
+
+## Dealing with dependencies with `isolate`.
+
+Say you need want to make a reactive output that updates when you change `input$a`, but not `input$b`, however it still depends on `input$b`. You can wrap all cases of `input$b` in its code in an isolate function (`isolate(input$b)`) and then the code will only rerun when `input$a` changes, not `input$b`. It will still however, use the new `input$b` data on its refresh if it has changed. 
+

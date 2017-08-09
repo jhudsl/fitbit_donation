@@ -23,9 +23,12 @@ vault <- here::here("apiVault")
 # 
 
 # add_secret("firebaseToken", firebase_token, users = c("n.strayer@vanderbilt.edu"), vault = vault)
-firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
+# firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
 
 ## Dropbox api stuff
 # add_secret("dbToken", dbToken, users = c("n.strayer@vanderbilt.edu"), vault = vault)
-dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
+# dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
 
+vault <- here::here("apiVault")
+firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
+dbToken <- get_secret("dbToken", key = local_key(), vault = vault)

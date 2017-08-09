@@ -30,6 +30,7 @@ body {
   background: snow;
   border-radius: 7px;
   height: 40px;
+  padding: 0px 10px;
 }
 
 #login_bar div {
@@ -45,5 +46,12 @@ body {
 .centered {
   display: flex;
   justify-content: center;
+}
+
+.disabled {
+  background-color: lightgrey !important;
+  color: darkgrey !important;
+  cursor: not-allowed !important;
+  border-color: #aaa !important;
 }
 "

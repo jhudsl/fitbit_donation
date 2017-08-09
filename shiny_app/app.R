@@ -27,11 +27,12 @@ source("shiny_app/api_keys.R")
 
 ui <- fluidPage(
   useShinyjs(),
+  extendShinyjs(text = tabDisableJS),
   title = "Quantified Whole",
   tags$head(
     tags$style(type="text/css", appCSS)
   ),
-  tabsetPanel(
+  tabsetPanel(id = "tabset",
     tabPanel( "Welcome",           welcomePanel() ),
     tabPanel( "Tag Your Data",     tagPanel() ),
     tabPanel( "Shareable Report",  reportPanel() ),
@@ -49,55 +50,63 @@ server <- function(input, output) {
     activityTags = NULL,          # Data on activity tags. Supplied by our viz (but also previous tags eventually.)
     userToken = NULL,             # Oauth token for fitbits api. 
     userName = NULL,              # First name of the logged in user.
-    newUser = TRUE,               # Used for welcome message
     userID = NULL,                # Unique fitbit ID for individual. Used for IDing files. 
     rawFile = NULL,               # Temp raw data file locations for dropbox so we dont write multiple per session. 
     tagFile = NULL                # Temp tag file location. 
   )
+  
+  # Control when we can see the different tabs. 
+  observe({
+    if(is.null(state$userToken)){
+      disableTabs()
+    } else{
+      enableTabs()
+    }
+  })
 
   # Fitbit authentication button. 
   authButton <- callModule(shinyLogin, "fitbit_login", api_info = api_keys)
  
-  # Tagging interface server-side, keep hidden until data shows up.
-  userTags <- callModule(fitbitTagger, 'tagger', data = state$daysProfile)
-  hideTagger()
-  hideLoader()
-  
-  output$userName <- renderText({
-    if(is.null(state$userName)){
-      "Login to get tagging!"
-    } else {
-      welcomeSuffix <- ifelse(state$newUser, "", " back ")
-      sprintf("Welcome %s%s!", welcomeSuffix, state$userName)
-    }
-  })
-  
+  output$userName <- renderText({ "Login to get tagging!" })
+ 
   # Watch for the user logging in. 
   # When we have a new user token grab the users info and set up file locations etc.
   observeEvent(authButton(), {
-    
+    print("trigger authButton event observer")
     state$userToken = authButton()
-    
-    # Kill the login message for the tagger
     hideLoginMessage()
-    
-    # Reveal the loading animation.
-    print("running show loader")
     showLoader()
   })
   
+  # User info from fitbits api. 
+  userInfo <- reactive({
+    # Only grab info if the user has logged in and we have their token
+    req(state$userToken)
+   
+    print('triggering the userInfo reactive event')
+    # Grab user's info from the fitbit api
+    getUserInfo(state$userToken)
+  })
   
-  # Once we have a user token look at their profile info to get name and fitbit-id
-  observeEvent(state$userToken, {
-    # Grab users name and id from api. 
-    userInfo       <- getUserInfo(state$userToken)
-    state$userName <- userInfo$firstName
-    state$userID   <- userInfo$encodedId
     
+  # Once we have some user info lets use it.
+  observeEvent(userInfo(), {
+    print('triggering userInfo observe event')
+
+    # Grab users name and id from api. 
+    # userInfo       <- getUserInfo(state$userToken)
+    state$userName <- userInfo()$firstName
+    state$userID   <- userInfo()$encodedId
     # Get user's entry in firebase
-    userStats <- findUserInFirebase(firebaseToken, userInfo)
-    state$newUser <- length(getLoginTimes(userStats)) == 0 
-      
+    userStats <- findUserInFirebase(firebaseToken, userInfo())
+    
+    # Update the username output. 
+    output$userName <- renderText({ 
+      newUser <- length(getLoginTimes(userStats)) == 0
+      welcomeSuffix <- ifelse(newUser, "", " back ")
+      sprintf("Welcome %s%s!", welcomeSuffix, userInfo()$firstName )
+    })
+
     # Find what days they have already downloaded. 
     state$alreadyDownloadedDays <- getAlreadyDownloadedDays(userStats)
     
@@ -107,7 +116,8 @@ server <- function(input, output) {
   
   # On login when desired days are populated or when user re-requests some new days. 
   observeEvent(state$desiredDays, {
-    
+    print("running observe event for desired days.")
+
     # Download desired day's data from fitbit
     state$daysProfile <- getPeriodProfile(token = state$userToken, desired_days = state$desiredDays)
     
@@ -125,10 +135,12 @@ server <- function(input, output) {
   
   # When the user's day profile downloads...
   observeEvent(state$daysProfile, {
-    # Hide loader
+    print('triggering data downloaded observe event')
+    
     hideLoader()
-    # Make tagger visable
-    showTagger()
+    
+    # Tagging interface server-side, keep hidden until data shows up.
+    userTags <- callModule(fitbitTagger, 'tagger', data = state$daysProfile)
     
     # Upload the raw data to dropbox.
     uploadDataToDropbox(state$daysProfile, dbToken, state$rawFile)
@@ -160,11 +172,14 @@ server <- function(input, output) {
   )
   
   # Watch for users tagging stuff.
-  observeEvent(userTags(), {
-    state$activityTags <- userTags()
-    print(state$activityTags)
-    #Upload tags to the dropbox tags file
-    uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
+  reactive({
+    req(userTags())
+    observeEvent(userTags(), {
+      state$activityTags <- userTags()
+      print(state$activityTags)
+      #Upload tags to the dropbox tags file
+      uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
+    })
   })
 }
 
