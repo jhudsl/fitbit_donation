@@ -24,7 +24,7 @@ source("shiny_app/helperFuncs/downloadDays.R")
 source("shiny_app/helperFuncs/loadApiCredentials.R")
 source("shiny_app/api_keys.R")
 
-
+options(shiny.reactlog=TRUE)
 ui <- fluidPage(
   useShinyjs(),
   extendShinyjs(text = tabDisableJS),
@@ -127,7 +127,6 @@ server <- function(input, output) {
   })
   
   
-  
   # When the user's day profile downloads...
   observeEvent(state$daysProfile, {
     hideLoader()
@@ -146,7 +145,6 @@ server <- function(input, output) {
   
   # Update the downloads page with actual data.
   output$displayRaw <- renderTable(state$daysProfile %>% head())
-  
   
   # Tag data table and download button
   output$displayTags <- renderTable(state$activityTags)
@@ -168,7 +166,6 @@ server <- function(input, output) {
   # # Watch for users tagging stuff.
   observeEvent(userTags(), {
     state$activityTags <- userTags()
-    print(userTags())
     #Upload tags to the dropbox tags file
     uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
   })
