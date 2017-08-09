@@ -11,8 +11,10 @@ fileNamer <- function(userId, start, end) {
 
 
 uploadDataToDropbox <- function(data, dbToken, csvDest){
-  write_csv(data, csvDest) #write the csv to server
-  drop_upload(csvDest, "apps/fitbitDonation/userData/", dtoken = dbToken) #upload to dropbox too.
+  try({
+    write_csv(data, csvDest) #write the csv to server
+    drop_upload(csvDest, "apps/fitbitDonation/userData/", dtoken = dbToken) #upload to dropbox too.
+  })
 }
 
 

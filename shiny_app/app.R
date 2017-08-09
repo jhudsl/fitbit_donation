@@ -7,12 +7,14 @@ library(rdrop2)
 
 # UI elements
 source('shiny_app/tabs/appCSS.R')
+source('shiny_app/tabs/helixLoader.R')
 source('shiny_app/tabs/welcomePanel.R')
 source('shiny_app/tabs/tagPanel.R')
 source('shiny_app/tabs/reportPanel.R')
 source('shiny_app/tabs/downloadPanel.R')
 
 # Server-side helpers
+source('shiny_app/helperFuncs/showAndHideFuncs.R')
 source('shiny_app/helperFuncs/reportGenerator.R')
 source("shiny_app/helperFuncs/dropboxHelpers.R")
 source("shiny_app/helperFuncs/firebaseHelpers.R")
@@ -46,7 +48,8 @@ server <- function(input, output) {
     daysProfile = NULL,           # Data from the desiredDays
     activityTags = NULL,          # Data on activity tags. Supplied by our viz (but also previous tags eventually.)
     userToken = NULL,             # Oauth token for fitbits api. 
-    userName = NULL,              # Full name (First Last) of the logged in user.
+    userName = NULL,              # First name of the logged in user.
+    newUser = TRUE,               # Used for welcome message
     userID = NULL,                # Unique fitbit ID for individual. Used for IDing files. 
     rawFile = NULL,               # Temp raw data file locations for dropbox so we dont write multiple per session. 
     tagFile = NULL                # Temp tag file location. 
@@ -55,14 +58,17 @@ server <- function(input, output) {
   # Fitbit authentication button. 
   authButton <- callModule(shinyLogin, "fitbit_login", api_info = api_keys)
  
-  # Tagging interface server-side
+  # Tagging interface server-side, keep hidden until data shows up.
   userTags <- callModule(fitbitTagger, 'tagger', data = state$daysProfile)
+  hideTagger()
+  hideLoader()
   
   output$userName <- renderText({
     if(is.null(state$userName)){
       "Login to get tagging!"
     } else {
-      sprintf("Logged in as %s", state$userName)
+      welcomeSuffix <- ifelse(state$newUser, "", " back ")
+      sprintf("Welcome %s%s!", welcomeSuffix, state$userName)
     }
   })
   
@@ -73,7 +79,11 @@ server <- function(input, output) {
     state$userToken = authButton()
     
     # Kill the login message for the tagger
-    shinyjs::hide(selector = "#tag_login_message", anim = TRUE)
+    hideLoginMessage()
+    
+    # Reveal the loading animation.
+    print("running show loader")
+    showLoader()
   })
   
   
@@ -81,12 +91,13 @@ server <- function(input, output) {
   observeEvent(state$userToken, {
     # Grab users name and id from api. 
     userInfo       <- getUserInfo(state$userToken)
-    state$userName <- userInfo$fullName
+    state$userName <- userInfo$firstName
     state$userID   <- userInfo$encodedId
     
     # Get user's entry in firebase
     userStats <- findUserInFirebase(firebaseToken, userInfo)
-    
+    state$newUser <- length(getLoginTimes(userStats)) == 0 
+      
     # Find what days they have already downloaded. 
     state$alreadyDownloadedDays <- getAlreadyDownloadedDays(userStats)
     
@@ -114,7 +125,11 @@ server <- function(input, output) {
   
   # When the user's day profile downloads...
   observeEvent(state$daysProfile, {
-
+    # Hide loader
+    hideLoader()
+    # Make tagger visable
+    showTagger()
+    
     # Upload the raw data to dropbox.
     uploadDataToDropbox(state$daysProfile, dbToken, state$rawFile)
 
@@ -147,6 +162,7 @@ server <- function(input, output) {
   # Watch for users tagging stuff.
   observeEvent(userTags(), {
     state$activityTags <- userTags()
+    print(state$activityTags)
     #Upload tags to the dropbox tags file
     uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
   })

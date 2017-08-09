@@ -1,25 +1,49 @@
 appCSS <- "
 body {
-font-family: 'optima';
+  font-family: 'optima';
 }
 
 .container-fluid { 
-max-width: 1000px;
-margin: 0 auto;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+#welcome_header {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 15px 0px;
+  justify-content: space-between;
 }
 
 #login_bar {
-display: flex;
-border: 1px solid steelblue;
-padding: 10px;
-border-radius: 8px;
+  display: flex;
+  align-items: center;
+  border: 1px solid dimgrey;
+  padding: 10px;
+  border-radius: 8px;
+  background: aliceblue;
 }
 
 #login_bar button {
-margin: 0px 10px;
+  margin: 0px 10px;
+  box-shadow: 1px 1px 3px 0px;
+  background: snow;
+  border-radius: 7px;
+  height: 40px;
 }
 
 #login_bar div {
-padding: 10px;
+  padding: 10px;
+}
+
+@media (max-width: 550px) {
+  #login_bar {
+    width: 100%;
+  }
+}
+
+.centered {
+  display: flex;
+  justify-content: center;
 }
 "
