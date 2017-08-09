@@ -6,6 +6,7 @@ library(shinyjs)
 library(rdrop2)
 
 # UI elements
+source('shiny_app/tabs/appCSS.R')
 source('shiny_app/tabs/welcomePanel.R')
 source('shiny_app/tabs/tagPanel.R')
 source('shiny_app/tabs/reportPanel.R')
@@ -14,21 +15,13 @@ source('shiny_app/tabs/downloadPanel.R')
 # Server-side helpers
 source('shiny_app/helperFuncs/reportGenerator.R')
 source("shiny_app/helperFuncs/dropboxHelpers.R")
+source("shiny_app/helperFuncs/firebaseHelpers.R")
 source("shiny_app/helperFuncs/downloadDays.R")
-source("shiny_app/helperFuncs/loadApiCredentials.R")
 
+source("shiny_app/helperFuncs/loadApiCredentials.R")
 source("shiny_app/api_keys.R")
 
-appCSS <- "
-body {
-   font-family: 'optima';
-}
-  
-.container-fluid { 
-  max-width: 1000px;
-  margin: 0 auto;
-}
-"
+
 
 ui <- fluidPage(
   useShinyjs(),
@@ -45,28 +38,33 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
-  #load dropbox token
-  dbToken <- readRDS("./shiny_app/storage-drop.rds")
-  
-  #Generate a random sessino ID for matching of tags and raw data. 
-  sessionID <- paste(sample(letters,14, replace = T), collapse = "")
-  
+
   # everything needed for the apps apperence is stored in here. 
   state <- reactiveValues(
-    numberOfDays = 7,   # Number of days to draw from api at once. 
-    desiredDays = NULL, # A vector of dates we want to pull (length = state$numberOfDays)
-    daysProfile = NULL, # Data from the desiredDays
-    activityTags = NULL,# Data on activity tags. Supplied by our viz (but also previous tags eventually.)
-    userToken = NULL,   # Oauth token for fitbits api. 
-    userName = NULL,    # Full name (First Last) of the logged in user.
-    userID = NULL,      # Unique fitbit ID for individual. Used for IDing files. 
-    rawFile = NULL,     # Temp raw data file locations for dropbox so we dont write multiple per session. 
-    tagFile = NULL      # Temp tag file location. 
+    alreadyDownloadedDays = NULL, # What days has the user already downloaded in previous logins?
+    desiredDays = NULL,           # A vector of dates we want to pull
+    daysProfile = NULL,           # Data from the desiredDays
+    activityTags = NULL,          # Data on activity tags. Supplied by our viz (but also previous tags eventually.)
+    userToken = NULL,             # Oauth token for fitbits api. 
+    userName = NULL,              # Full name (First Last) of the logged in user.
+    userID = NULL,                # Unique fitbit ID for individual. Used for IDing files. 
+    rawFile = NULL,               # Temp raw data file locations for dropbox so we dont write multiple per session. 
+    tagFile = NULL                # Temp tag file location. 
   )
 
   # Fitbit authentication button. 
   authButton <- callModule(shinyLogin, "fitbit_login", api_info = api_keys)
  
+  # Tagging interface server-side
+  userTags <- callModule(fitbitTagger, 'tagger', data = state$daysProfile)
+  
+  output$userName <- renderText({
+    if(is.null(state$userName)){
+      "Login to get tagging!"
+    } else {
+      sprintf("Logged in as %s", state$userName)
+    }
+  })
   
   # Watch for the user logging in. 
   # When we have a new user token grab the users info and set up file locations etc.
@@ -79,30 +77,43 @@ server <- function(input, output) {
   })
   
   
-  # Once we have a user token download some data
+  # Once we have a user token look at their profile info to get name and fitbit-id
   observeEvent(state$userToken, {
     # Grab users name and id from api. 
-    userInfo  <- getUserInfo(state$userToken)
+    userInfo       <- getUserInfo(state$userToken)
     state$userName <- userInfo$fullName
-    state$userID <- userInfo$encodedId
-    browser()
-    fitbitDownload <- downloadDays(token = state$userToken, numberOfDays = state$numberOfDays)
-    state$desiredDays <- fitbitDownload$days
-    state$daysProfile <- fitbitDownload$data
+    state$userID   <- userInfo$encodedId
+    
+    # Get user's entry in firebase
+    userStats <- findUserInFirebase(firebaseToken, userInfo)
+    
+    # Find what days they have already downloaded. 
+    state$alreadyDownloadedDays <- getAlreadyDownloadedDays(userStats)
+    
+    # If they have not downloaded any data before pull the most recent seven days to get started
+    state$desiredDays <- makeDesiredDays(numberOfDays = 7, startDay = Sys.Date())
+  })
+  
+  # On login when desired days are populated or when user re-requests some new days. 
+  observeEvent(state$desiredDays, {
+    
+    # Download desired day's data from fitbit
+    state$daysProfile <- getPeriodProfile(token = state$userToken, desired_days = state$desiredDays)
+    
+    # Add new dates to the already downloaded list. 
+    state$alreadyDownloadedDays <- unique(c(state$alreadyDownloadedDays, state$desiredDays))
     
     # Set up the dropbox file upload temp locations. 
-    dbFileNames <- fileNamer(sessionID, state$desiredDays[1], state$desiredDays[state$numberOfDays])
+    # Eventually if storage becomes an issue we may want to optimize this by not re-downloading duplicates.
+    dbFileNames <- fileNamer(state$userID, state$desiredDays[1], tail(state$desiredDays,n=1))
     state$rawFile <- dbFileNames("raw")
     state$tagFile <- dbFileNames("tag")
   })
-
-  # When the users day profile downloads...
+  
+  
+  
+  # When the user's day profile downloads...
   observeEvent(state$daysProfile, {
-
-    # set up tagging interface
-    userTags <- callModule(fitbitTagger,
-                           'tagger',
-                           data = state$daysProfile)
 
     # Upload the raw data to dropbox.
     uploadDataToDropbox(state$daysProfile, dbToken, state$rawFile)
@@ -113,30 +124,31 @@ server <- function(input, output) {
       'userReport',
       state$daysProfile
     )
-
-    # Watch for users tagging stuff.
-    observeEvent(userTags(), {
-      state$activityTags <- userTags()
-      #Upload tags to the dropbox tags file
-      uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
-    })
-
-    # Update the downloads page with actual data.
-    output$displayRaw <- renderTable(state$daysProfile %>% head())
-    output$downloadTags <- downloadHandler(
-      filename = "my_activity_tags.csv",
-      content = function(file) {
-        write.csv(state$activityTags, file)
-      }
-    )
-    # Update the download buttons
-    output$displayTags <- renderTable(state$activityTags)
-    output$downloadRaw <- downloadHandler(
-      filename = "my_fitbit_data.csv",
-      content = function(file) {
-        write.csv(state$daysProfile, file)
-      }
-    )
+  })
+  
+  # Update the downloads page with actual data.
+  output$displayRaw <- renderTable(state$daysProfile %>% head())
+  
+  output$downloadTags <- downloadHandler(
+    filename = "my_activity_tags.csv",
+    content = function(file) {
+      write.csv(state$activityTags, file)
+    }
+  )
+  # Download buttons
+  output$displayTags <- renderTable(state$activityTags)
+  output$downloadRaw <- downloadHandler(
+    filename = "my_fitbit_data.csv",
+    content = function(file) {
+      write.csv(state$daysProfile, file)
+    }
+  )
+  
+  # Watch for users tagging stuff.
+  observeEvent(userTags(), {
+    state$activityTags <- userTags()
+    #Upload tags to the dropbox tags file
+    uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
   })
 }
 

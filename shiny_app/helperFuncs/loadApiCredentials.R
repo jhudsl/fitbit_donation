@@ -1,3 +1,10 @@
+# This file uses the library secret to encript server-side tokens 
+# for both dropbox and firebase. It is sourced in our app.js file
+# and thus loads the tokens from the vault at the initialization 
+# of the shiny instance. Since both tokens are httr oauth ones
+# they will auto-refresh when they get stale if the shiny instance
+# runs for a long time. 
+
 library(secret)
 # We are using the R package secrets to encript our api values. 
 # No need to be scared about commiting something bad anymore! 
@@ -14,12 +21,11 @@ vault <- here::here("apiVault")
 #   json_file="fitbitdatadonation-firebase-adminsdk-p35yx-30b97f62d7.json",
 #   scope = c("https://www.googleapis.com/auth/firebase.database", "https://www.googleapis.com/auth/userinfo.email"))
 # 
-# add_secret("firebase_token", firebase_token, users = c("n.strayer@vanderbilt.edu"), vault = vault)
 
-firebase_token <- get_secret("firebase_token", key = local_key(), vault = vault)
+# add_secret("firebaseToken", firebase_token, users = c("n.strayer@vanderbilt.edu"), vault = vault)
+firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
 
-## We can now use this token with simple httr requests
-# req <- PUT(url = "https://fitbitdatadonation.firebaseio.com/testing.json",
-#            body = list(x = "A simple text string another time"),
-#            config = config(token = firebase_token), 
-#            encode = "json")
+## Dropbox api stuff
+# add_secret("dbToken", dbToken, users = c("n.strayer@vanderbilt.edu"), vault = vault)
+dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
+

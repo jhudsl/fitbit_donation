@@ -1,3 +1,16 @@
+# A few functions that make interacting with our firebase database easier. 
+# Reference for these functions is available at https://firebase.google.com/docs/reference/rest/database/.
+
+# Basic status code checker. 200 is the good one.
+# In the future this may be expanded to deal with other situations
+checkStatusCode <- function(queryReturn){
+  if( httr::status_code(queryReturn) != 200) {
+    stop("Something seems to have gone wrong")
+  } else {
+    "all good"
+  }
+}
+
 
 # Defines what we store per individual in our firebase database. 
 # We have all the demographic info inside fitbit so we will just grab their name 
@@ -36,18 +49,22 @@ addUser <- function(firebase_token, userInfoList){
 
 # Queries our users section of the database and trys to fetch a users info. 
 # If there is no response we create a new user entry into the database. 
-getUserData <- function(firebase_token, userId, userInfoList){
+findUserInFirebase <- function(firebase_token, userInfo){
   
-  queryUrl <- sprintf("https://fitbitdatadonation.firebaseio.com/users/%s.json", userId)
+  queryUrl <- sprintf("https://fitbitdatadonation.firebaseio.com/users/%s.json", userInfo$encodedId)
   result <- httr::GET(url = queryUrl,
                       config = httr::config(token = firebase_token),
                       encode = "json") %>% httr::content()
   
   # If our query returns empty.
   if(is.null(result)){
-    result <- addUser(firebase_token, userInfoList)
+    result <- addUser(firebase_token, userInfo)
   }
   
+  # Add a login to their profile
+  addLoginTime(firebase_token, userInfo$encodedId)
+  
+  # Return the info we have on them from firebase (Doesn't include the latest login we just added)
   result
 }
 
@@ -60,11 +77,10 @@ addLoginTime <- function(firebase_token, userId, loginTime = as.character(Sys.ti
                           body = list(time = loginTime),
                           config = httr::config(token = firebase_token),
                           encode = "json") 
-  
-  if( httr::status_code(newLogin) != 200) {
-    stop("Something seems to have gone wrong")
-  }
-  
+
+  checkStatusCode(newLogin)
+ 
+  httr::content(newLogin)
   return("successfully updated logins")
 }
 
@@ -73,4 +89,20 @@ getLoginTimes <- function(firebaseUserData){
   firebaseUserData$logins %>% unlist() %>% as.vector()
 }
 
-# getUserData(firebase_token, userId, userInfoList) %>% getLoginTimes()
+getAlreadyDownloadedDays <- function(firebaseUserData){
+  firebaseUserData$pulledDays %>% unlist() %>% as.vector()
+}
+
+
+# Takes a number of days to pull and a day at which to start pulling and returns an array of dates
+# in character format starting at startDay and going back numberOfDays days.
+makeDesiredDays <- function(numberOfDays = 7, startDay = Sys.Date()){
+  
+  startDay <- Sys.Date() #start on today (probably needs to change eventually)
+  endDay <- startDay - lubridate::days(numberOfDays)
+  
+  as.character(seq(startDay, endDay, "-1 days"))
+}
+
+
+

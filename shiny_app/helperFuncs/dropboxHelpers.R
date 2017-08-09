@@ -3,9 +3,9 @@
 # uniqueID <- "oiashdfoiahjf"
 # type <- "raw"
 
-fileNamer <- function(sessionID, start, end) {
+fileNamer <- function(userId, start, end) {
   function(type){
-    tempfile(pattern = sprintf("%s_%s_%s_%s_", sessionID, type, start, end), fileext = ".csv")
+    tempfile(pattern = sprintf("%s_%s_%s_%s_", userId, type, start, end), fileext = ".csv")
   }
 }
 
