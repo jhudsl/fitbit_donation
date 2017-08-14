@@ -120,7 +120,9 @@ server <- function(input, output) {
     userTags <- callModule(taggingModule, 'tagviz', data = state$daysProfile)
     
     # Download desired day's data from fitbit
+    showLoader()
     state$daysProfile <- getPeriodProfile(token = state$userToken, desired_days = desiredDays())
+    hideLoader()
     
     # Add new dates to the already downloaded list. 
     state$alreadyDownloadedDays <- unique(c(state$alreadyDownloadedDays,  desiredDays()))
