@@ -14,6 +14,7 @@ source('shiny_app/tabs/reportPanel.R')
 source('shiny_app/tabs/downloadPanel.R')
 
 # Server-side helpers
+source('shiny_app/helperFuncs/makeDesiredDays.R')
 source('shiny_app/helperFuncs/showAndHideFuncs.R')
 source('shiny_app/helperFuncs/reportGenerator.R')
 source("shiny_app/helperFuncs/dropboxHelpers.R")
@@ -24,7 +25,8 @@ source("shiny_app/helperFuncs/downloadDays.R")
 source("shiny_app/helperFuncs/loadApiCredentials.R")
 source("shiny_app/api_keys.R")
 
-options(shiny.reactlog=TRUE)
+# options(shiny.reactlog=TRUE)
+
 ui <- fluidPage(
   useShinyjs(),
   extendShinyjs(text = tabDisableJS),
@@ -72,13 +74,19 @@ server <- function(input, output) {
       sprintf("Welcome back %s!", name())
     )
   })
- 
+  
+  observeEvent(input$desiredDaysPicker, {
+    req(state$userToken)
+    state$desiredDays <- makeDateRange(input$desiredDaysPicker)
+  })
+  
   # Watch for the user logging in. 
   # When the user has logged in. Set the state for the user token to its returned value. 
   observeEvent(loginButton(), {
     state$userToken = loginButton()
     enableTabs()
     showLoader()
+    state$desiredDays <- makeDateRange(input$desiredDaysPicker)
   })
   
   # User info from fitbits api. 
@@ -101,17 +109,15 @@ server <- function(input, output) {
     
     # Find what days they have already downloaded. 
     state$alreadyDownloadedDays <- getAlreadyDownloadedDays(userStats)
-    
-    # If they have not downloaded any data before pull the most recent seven days to get started
-    state$desiredDays <- makeDesiredDays(numberOfDays = 7, startDay = Sys.Date())
   })
   
   # On login when desired days are populated or when user re-requests some new days. 
   observeEvent(state$desiredDays, {
+    
     desiredDays <- reactive({state$desiredDays})
     
     # Update user tags reactive object with the module. 
-    userTags <- callModule(fitbitTagger, 'tagger', data = state$daysProfile)
+    userTags <- callModule(taggingModule, 'tagviz', data = state$daysProfile)
     
     # Download desired day's data from fitbit
     state$daysProfile <- getPeriodProfile(token = state$userToken, desired_days = desiredDays())
@@ -134,13 +140,7 @@ server <- function(input, output) {
     
     # Upload the raw data to dropbox.
     uploadDataToDropbox(daysProfile(), dbToken, state$rawFile)
-
-    # Generate a report plot.
-    output$reportPlot <- callModule(
-      activityReport,
-      'userReport',
-      state$daysProfile
-    )
+    
   })
   
   # Update the downloads page with actual data.
@@ -169,6 +169,16 @@ server <- function(input, output) {
     #Upload tags to the dropbox tags file
     uploadDataToDropbox(state$activityTags, dbToken, state$tagFile)
   })
+  
+  # Generate a report plot.
+  output$reportPlot <- callModule(
+    activityReport,
+    'userReport',
+    state$daysProfile
+  )
+  
+  
+ 
 }
 
 # Run the application

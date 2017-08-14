@@ -5,13 +5,11 @@
 # they will auto-refresh when they get stale if the shiny instance
 # runs for a long time. 
 
-library(secret)
 # We are using the R package secrets to encript our api values. 
 # No need to be scared about commiting something bad anymore! 
 
 
 # This is the location of our "vault" in the project directory. 
-vault <- here::here("apiVault")
 
 # If you need to add a user you do it here. 
 # add_user('n.strayer@vanderbilt.edu', local_key()$pubkey, vault = vault)
@@ -29,6 +27,7 @@ vault <- here::here("apiVault")
 # add_secret("dbToken", dbToken, users = c("n.strayer@vanderbilt.edu"), vault = vault)
 # dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
 
+library(secret)
 vault <- here::here("apiVault")
 firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
 dbToken <- get_secret("dbToken", key = local_key(), vault = vault)

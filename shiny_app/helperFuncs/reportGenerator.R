@@ -7,7 +7,7 @@
 
 generateReport <- function(data){
   timeLabels <- c("midnight", "1 am",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9",  "10", "11", "noon", "1 pm", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
-  minsInDay <- 24*60
+  minsInDay  <- 24*60
 
   formatedData <- data %>% 
     arrange(date) %>% 

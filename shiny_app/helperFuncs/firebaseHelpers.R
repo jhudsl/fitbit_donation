@@ -40,10 +40,12 @@ addUser <- function(firebase_token, userInfoList){
   
   queryUrl <- "https://fitbitdatadonation.firebaseio.com/users.json"
   
-  result <- httr::PUT(url = queryUrl,
-                      body = putBody,
-                      config = httr::config(token = firebase_token),
-                      encode = "json") 
+  httr::PUT(
+    url = queryUrl,
+    body = putBody,
+    config = httr::config(token = firebase_token),
+    encode = "json"
+  ) 
 }
 
 
@@ -52,9 +54,12 @@ addUser <- function(firebase_token, userInfoList){
 findUserInFirebase <- function(firebase_token, userInfo){
   
   queryUrl <- sprintf("https://fitbitdatadonation.firebaseio.com/users/%s.json", userInfo$encodedId)
-  result <- httr::GET(url = queryUrl,
-                      config = httr::config(token = firebase_token),
-                      encode = "json") %>% httr::content()
+  
+  result <- httr::GET(
+    url = queryUrl,
+    config = httr::config(token = firebase_token),
+    encode = "json"
+  ) %>% httr::content()
   
   # If our query returns empty.
   if(is.null(result)){
@@ -73,14 +78,15 @@ addLoginTime <- function(firebase_token, userId, loginTime = as.character(Sys.ti
   
   queryUrl <- sprintf("https://fitbitdatadonation.firebaseio.com/users/%s/logins.json", userId)
   
-  newLogin <- httr::POST(url = queryUrl,
-                          body = list(time = loginTime),
-                          config = httr::config(token = firebase_token),
-                          encode = "json") 
+  newLogin <- httr::POST(
+    url = queryUrl,
+    body = list(time = loginTime),
+    config = httr::config(token = firebase_token),
+    encode = "json"
+  ) 
 
   checkStatusCode(newLogin)
  
-  httr::content(newLogin)
   return("successfully updated logins")
 }
 
@@ -91,17 +97,6 @@ getLoginTimes <- function(firebaseUserData){
 
 getAlreadyDownloadedDays <- function(firebaseUserData){
   firebaseUserData$pulledDays %>% unlist() %>% as.vector()
-}
-
-
-# Takes a number of days to pull and a day at which to start pulling and returns an array of dates
-# in character format starting at startDay and going back numberOfDays days.
-makeDesiredDays <- function(numberOfDays = 7, startDay = Sys.Date()){
-  
-  startDay <- Sys.Date() #start on today (probably needs to change eventually)
-  endDay <- startDay - lubridate::days(numberOfDays)
-  
-  as.character(seq(startDay, endDay, "-1 days"))
 }
 
 
