@@ -5,8 +5,8 @@
 # data <- read_csv('fitbit_data.csv')
 # data <- read_csv('my_fitbit_data_big.csv')
 
-chartWidth  <- 178 #mm
-chartHeight <- 254 #mm
+chartWidth  <- 200 #mm
+chartHeight <- 300 #mm
 
 generateReport <- function(data){
   
@@ -16,7 +16,7 @@ generateReport <- function(data){
   
   totalDays <- data$date %>% unique() %>% length()
   
-  lineThickness <- ( chartWidth/ 4.3) /totalDays
+  lineThickness <- ( chartWidth/ 6) /totalDays
   
   formatedData <- data %>% 
     arrange(date) %>% 
@@ -33,9 +33,9 @@ generateReport <- function(data){
     coord_polar() + 
     geom_line(size = lineThickness) +
     theme_minimal() + 
-    # facet_wrap(~type, ncol=1, strip.position = "bottom") + 
+    facet_wrap(~type, ncol=1, strip.position = "bottom") +
     scale_x_continuous(breaks = 0:23/12, labels = timeLabels) +
-    ylim(-maxTotalMins, maxTotalMins) +
+    ylim(-maxTotalMins*0.75, maxTotalMins) +
     theme(
       axis.text.y = element_blank(),
       text = element_text(family = "Georgia"),
