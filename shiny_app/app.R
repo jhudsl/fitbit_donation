@@ -20,6 +20,8 @@ source('shiny_app/helperFuncs/reportGenerator.R')
 source("shiny_app/helperFuncs/dropboxHelpers.R")
 source("shiny_app/helperFuncs/firebaseHelpers.R")
 source("shiny_app/helperFuncs/downloadDays.R")
+source("shiny_app/helperFuncs/apiLimitMessage.R")
+
 
 # API Info from encripted vault. 
 source("shiny_app/helperFuncs/loadApiCredentials.R")
@@ -63,7 +65,7 @@ server <- function(input, output) {
   
   # Initialize a holder for the user tags function. This allows us to be able to 
   # call an observerEvent on it but also call it within another observe event as well. Hacky and probably not the best way.
-  userTags <- reactive({NULL})
+  userTags <- callModule(taggingModule, 'tagviz', data = state$daysProfile)
   
   
   ############################################# Event Observers #############################################
@@ -81,11 +83,12 @@ server <- function(input, output) {
     reducer(type = "SET_DESIRED_DAYS", payload = input$desiredDaysPicker)
   })
   
-    
+  
   observeEvent(state$userToken, {
     # Grab users name and id from api and send it to app state
-    userInfo <- getUserInfo(state$userToken)
-    
+    userInfo <- tryApi(getUserInfo, state$userToken)
+    req(querySuccess(userInfo)) #stop if the query failed. User will have popup telling them what happened. 
+
     # Get our user metadata from firebase. 
     userStats <- findUserInFirebase(firebaseToken, userInfo)
     
@@ -106,12 +109,14 @@ server <- function(input, output) {
     reducer(type = "SET_DESIRED_DAYS", payload = input$desiredDaysPicker)
   })
   
-  
   observeEvent(state$desiredDays, {
     # Reshow the loader as we're going to start downloading data. 
     showLoader()
-    profile <- getPeriodProfile(token = state$userToken, desired_days = state$desiredDays)
-   
+
+    # We need to try catch here in case the user goes over the api limit. 
+    profile <- tryApi(getPeriodProfile, token = state$userToken, desired_days = state$desiredDays)
+    req(querySuccess(profile))
+    
     # Set up the dropbox file upload temp locations.
     # Eventually if storage becomes an issue we may want to optimize this by not re-downloading duplicates.
     dbFileNames <- fileNamer(state$userInfo$id, state$desiredDays[1], tail( state$desiredDays,n=1))
@@ -125,6 +130,7 @@ server <- function(input, output) {
   observeEvent(state$daysProfile, {
     # The downloading is done so we can hide the loader icon. 
     hideLoader()
+    
     # Set up call module with the new data. Double arrow so it impacts the previous userTags variable
     userTags <<- callModule(taggingModule, 'tagviz', data = state$daysProfile)
 
@@ -152,17 +158,19 @@ server <- function(input, output) {
   # like is should for a given scenario. 
   
   output$userName <- renderText({ 
-    name <- state$userInfo$name
-    # If the user has yet to login prompt them to, otherwise welcome them. 
-    ifelse(is.null(name),
-           "Login to get tagging!",
-           sprintf("Welcome back %s!", name)
-    )
+    # They have no name but they have a token means they went over api limit
+    if(is.null(state$userInfo$name) && !is.null(state$userToken)){
+      return("Try back shortly!")
+    } else if (!is.null(state$userInfo$name)) {
+      return(sprintf("Welcome back %s!", state$userInfo$name))
+    } else {
+      return("Login to get tagging!")
+    }
   })
   
   # Update the downloads page with actual data.
   output$displayRaw <- renderTable(state$daysProfile %>% head())
-  
+   
   # Tag data table and download button
   output$displayTags <- renderTable(state$activityTags)
   
