@@ -134,6 +134,9 @@ server <- function(input, output) {
     # Set up call module with the new data. Double arrow so it impacts the previous userTags variable
     userTags <<- callModule(taggingModule, 'tagviz', data = state$daysProfile)
 
+    # Update the user report
+    output$reportPlot <- callModule(activityReport, 'userReport',state$daysProfile)
+    
     # Upload the raw data to dropbox.
     uploadDataToDropbox(state$daysProfile, dbToken, state$filePaths$raw)
     
@@ -189,12 +192,6 @@ server <- function(input, output) {
     }
   )
  
-  # Generate a report plot.
-  output$reportPlot <- callModule(
-    activityReport,
-    'userReport',
-    state$daysProfile
-  )
 }
 
 # Run the application

@@ -3,12 +3,21 @@
 # library(tidyverse)
 # 
 # data <- read_csv('fitbit_data.csv')
-# 
+# data <- read_csv('my_fitbit_data_big.csv')
+
+chartWidth  <- 178 #mm
+chartHeight <- 254 #mm
 
 generateReport <- function(data){
+  
+  # data <- data %>% filter(type != 'heart rate')
   timeLabels <- c("midnight", "1 am",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9",  "10", "11", "noon", "1 pm", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
   minsInDay  <- 24*60
-
+  
+  totalDays <- data$date %>% unique() %>% length()
+  
+  lineThickness <- ( chartWidth/ 4.3) /totalDays
+  
   formatedData <- data %>% 
     arrange(date) %>% 
     mutate(day = as.integer(difftime(date, min(date), units = "days"))) %>% 
@@ -18,13 +27,13 @@ generateReport <- function(data){
   
   maxTotalMins <- max(formatedData$totalMins)
   
-  formatedData %>% 
+  plot <- formatedData %>% 
     ggplot(aes(x = posInDay, y = totalMins, color = value, group = as.character(day))) + 
     viridis::scale_color_viridis(option = 'C') + 
     coord_polar() + 
-    geom_line(size = 4) +
+    geom_line(size = lineThickness) +
     theme_minimal() + 
-    facet_wrap(~type, ncol=1, strip.position = "bottom") + 
+    # facet_wrap(~type, ncol=1, strip.position = "bottom") + 
     scale_x_continuous(breaks = 0:23/12, labels = timeLabels) +
     ylim(-maxTotalMins, maxTotalMins) +
     theme(
@@ -36,6 +45,8 @@ generateReport <- function(data){
       panel.grid.minor.x = element_blank()
     ) + 
     labs(x = "", y = "", color = "", title = "My Heartrate and Steps", subtitle = "Data gathered from my Fitbit and visualized using Quantified Whole")
+
+  plot
 }
 
 # generateReport(data)
@@ -56,12 +67,13 @@ activityReportUI <- function(id){
 }
 
 
+
 activityReport <-  function(input, output, session, data){
   
   output$userReport <- renderImage({
     outfile <- tempfile(fileext = ".png")
     report <- generateReport(data)
-    ggsave(outfile, report, width = 7, height = 10, dpi = 265)
+    ggsave(outfile, report, width = chartWidth, height = chartWidth, units = "mm", dpi = 300)
     
      # Return a list containing information about the image
     list(src = outfile,
