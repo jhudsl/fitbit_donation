@@ -95,7 +95,6 @@ reducer <- function(type = "INITIALIZE", payload = NULL){
   }
   
   if(type == "SET_DESIRED_DAYS" | init){
-    print(payload)
     # A vector of dates we want to pull
     state$desiredDays = desiredDays_reducer(state$desiredDays, actionList)
   }

@@ -25,8 +25,6 @@ source("shiny_app/helperFuncs/downloadDays.R")
 source("shiny_app/helperFuncs/loadApiCredentials.R")
 source("shiny_app/api_keys.R")
 
-# options(shiny.reactlog=TRUE)
-
 ui <- fluidPage(
   useShinyjs(),
   extendShinyjs(text = tabDisableJS),
@@ -43,6 +41,11 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
+  
+  ############################################# Initializations #############################################
+  # These are all things that get run once at the start of a given user's session. 
+  # They set up the framework for the subsequent reactive sections. 
+  
   # Initialize the app state here. 
   state <- isolate({reactiveValues()})
   
@@ -62,73 +65,99 @@ server <- function(input, output) {
   # call an observerEvent on it but also call it within another observe event as well. Hacky and probably not the best way.
   userTags <- reactive({NULL})
   
-  # If the user has yet to login prompt them to, otherwise welcome them. 
-  output$userName <- renderText({ 
-    name <- state$userInfo$name
-    ifelse(is.null(name),
-      "Login to get tagging!",
-      sprintf("Welcome back %s!", name)
-    )
-  })
+  
+  ############################################# Event Observers #############################################
+  # Here we watch for things that can happen as our app is running, sending the results to the appropriate
+  # reducer functions. Reducers go at the end after whatever intermediary logic we need beforehand. 
   
   # Watch for the user logging in. 
-  # When the user has logged in. Set the state for the user token to its returned value. 
   observeEvent(loginButton(), {
-    reducer(type = "ADD_FITBIT_TOKEN", payload = loginButton())
-    reducer(type = "SET_DESIRED_DAYS", payload = input$desiredDaysPicker)
+    # Unlock the tabs and also show a loader for downloading data. 
     enableTabs()
     showLoader()
+    
+    # Set the state for the user token to its returned value.
+    reducer(type = "ADD_FITBIT_TOKEN", payload = loginButton())
+    reducer(type = "SET_DESIRED_DAYS", payload = input$desiredDaysPicker)
   })
   
     
-  # Once we have a token lets use it to get user info. 
   observeEvent(state$userToken, {
     # Grab users name and id from api and send it to app state
     userInfo <- getUserInfo(state$userToken)
-    reducer(type = "SET_USER_INFO", payload = userInfo)
-
+    
     # Get our user metadata from firebase. 
     userStats <- findUserInFirebase(firebaseToken, userInfo)
     
     # Find what days they have already downloaded. 
     previouslyDownloaded <- getAlreadyDownloadedDays(userStats)
+    
+    # Set the user info in the state and also add previously downloaded days. 
+    reducer(type = "SET_USER_INFO", payload = userInfo)
     reducer(type = "ADD_DOWNLOADED_DAYS", payload = previouslyDownloaded)
   })
   
   
-  # Watch the date picker and set new days when it is updated. 
   observeEvent(input$desiredDaysPicker, {
-    req(state$userToken)
+    # We require user token because otherwise this will fire at startup and we will 
+    # accidentally try and grab data with not api token.
+    req(state$userToken) 
+    # If the user has logged in and subsequently changed the date range from the default update data. 
     reducer(type = "SET_DESIRED_DAYS", payload = input$desiredDaysPicker)
   })
   
   
-  # On login when desired days are populated or when user re-requests some new days. 
   observeEvent(state$desiredDays, {
-    # Download desired day's data from fitbit
+    # Reshow the loader as we're going to start downloading data. 
     showLoader()
     profile <- getPeriodProfile(token = state$userToken, desired_days = state$desiredDays)
-    reducer(type = "ADD_DAYS_PROFILE", payload = profile)
-    hideLoader()
-
+   
     # Set up the dropbox file upload temp locations.
     # Eventually if storage becomes an issue we may want to optimize this by not re-downloading duplicates.
     dbFileNames <- fileNamer(state$userInfo$id, state$desiredDays[1], tail( state$desiredDays,n=1))
+    
+    reducer(type = "ADD_DAYS_PROFILE", payload = profile)
     reducer(type = "SET_FILE_PATHS", payload = list(raw = dbFileNames("raw"), tags = dbFileNames("tag")))
   })
   
   
   # When the user's day profile downloads...
   observeEvent(state$daysProfile, {
+    # The downloading is done so we can hide the loader icon. 
     hideLoader()
-    
-    userTags <- callModule(taggingModule, 'tagviz', data = state$daysProfile)
+    # Set up call module with the new data. Double arrow so it impacts the previous userTags variable
+    userTags <<- callModule(taggingModule, 'tagviz', data = state$daysProfile)
+
+    # Upload the raw data to dropbox.
+    uploadDataToDropbox(state$daysProfile, dbToken, state$filePaths$raw)
     
     # Add newly downloaded dates to the already downloaded list.
     reducer(type = "ADD_DOWNLOADED_DAYS", payload = state$desiredDays)
-    
-    # Upload the raw data to dropbox.
-    uploadDataToDropbox(state$daysProfile, dbToken, state$filePaths$raw)
+  })
+  
+  # userTags() will fire when the user has created a new tag. 
+  observeEvent(userTags(), {
+    print(userTags())
+    reducer(type = "SET_ACTIVITY_TAGS", payload = userTags())
+  })
+  
+  # After new tags have been added to the state send them to dropbox as well. 
+  observeEvent(state$activityTags, {
+    print(state$activityTags)
+    uploadDataToDropbox(state$activityTags, dbToken, state$filePaths$tags)
+  })
+  
+  ############################################# Output Bindings #############################################
+  # This is where the actual UI is bound. Basically these just watch our state and make the screen look
+  # like is should for a given scenario. 
+  
+  output$userName <- renderText({ 
+    name <- state$userInfo$name
+    # If the user has yet to login prompt them to, otherwise welcome them. 
+    ifelse(is.null(name),
+           "Login to get tagging!",
+           sprintf("Welcome back %s!", name)
+    )
   })
   
   # Update the downloads page with actual data.
@@ -151,21 +180,13 @@ server <- function(input, output) {
       write.csv(state$daysProfile, file)
     }
   )
-  
-  # # Watch for users tagging stuff.
-  observeEvent(userTags(), {
-    reducer(type = "SET_ACTIVITY_TAGS", payload = userTags())
-    #Upload tags to the dropbox tags file
-    uploadDataToDropbox(userTags(), dbToken, state$filePaths$tags)
-  })
-  
+ 
   # Generate a report plot.
   output$reportPlot <- callModule(
     activityReport,
     'userReport',
     state$daysProfile
   )
- 
 }
 
 # Run the application
