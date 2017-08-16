@@ -1,29 +1,30 @@
 library(shiny)
 library(tidyverse)
 library(lubridate)
+# devtools::install_github("jhudsl/fitbitr", force = TRUE)
 library(fitbitr)
+library(V8)
 library(shinyjs)
 library(rdrop2)
 
 # UI elements
-source('shiny_app/tabs/appCSS.R')
-source('shiny_app/tabs/helixLoader.R')
-source('shiny_app/tabs/welcomePanel.R')
-source('shiny_app/tabs/tagPanel.R')
-source('shiny_app/tabs/reportPanel.R')
-source('shiny_app/tabs/downloadPanel.R')
+source('tabs/appCSS.R')
+source('tabs/helixLoader.R')
+source('tabs/welcomePanel.R')
+source('tabs/tagPanel.R')
+source('tabs/reportPanel.R')
+source('tabs/downloadPanel.R')
 
 # Server-side helpers
-source('shiny_app/helperFuncs/makeDesiredDays.R')
-source('shiny_app/helperFuncs/showAndHideFuncs.R')
-source('shiny_app/helperFuncs/reportGenerator.R')
-source("shiny_app/helperFuncs/dropboxHelpers.R")
-source("shiny_app/helperFuncs/firebaseHelpers.R")
-source("shiny_app/helperFuncs/downloadDays.R")
-source("shiny_app/helperFuncs/apiLimitMessage.R")
+source('helperFuncs/makeDesiredDays.R')
+source('helperFuncs/showAndHideFuncs.R')
+source('helperFuncs/reportGenerator.R')
+source("helperFuncs/dropboxHelpers.R")
+source("helperFuncs/firebaseHelpers.R")
+source("helperFuncs/apiLimitMessage.R")
 
 # Load all the super secret api info. 
-source("shiny_app/helperFuncs/loadApiCredentials.R")
+source("helperFuncs/loadApiCredentials.R")
 
 ui <- fluidPage(
   useShinyjs(),
@@ -50,7 +51,7 @@ server <- function(input, output) {
   state <- isolate({reactiveValues()})
   
   # Call reducer script to set up reducer function with state context. 
-  source("shiny_app/helperFuncs/reducer.R", local = TRUE)
+  source("helperFuncs/reducer.R", local = TRUE)
   
   # Run state through empty reducer to initialize
   isolate({reducer()})
@@ -171,7 +172,7 @@ server <- function(input, output) {
   
   # Update the downloads page with actual data.
   output$displayRaw <- renderTable(state$daysProfile %>% head())
-   
+  
   # Tag data table and download button
   output$displayTags <- renderTable(state$activityTags)
   

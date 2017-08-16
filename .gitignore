@@ -4,3 +4,4 @@
 .Ruserdata
 api_keys.R
 .httr-oauth
+shiny_app/apiCredentials/

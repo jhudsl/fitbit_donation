@@ -37,6 +37,6 @@
 
 ####### Code using serialized rds files ##########
 
-firebaseToken <- readRDS(here::here("shiny_app/apiCredentials/firebaseToken.rds"))
-dbToken <- readRDS(here::here("shiny_app/apiCredentials/dbToken.rds"))
-fitbitApiInfo <- readRDS(here::here("shiny_app/apiCredentials/fitbitApiInfo.rds"))
+firebaseToken <- readRDS("apiCredentials/firebaseToken.rds")
+dbToken <- readRDS("apiCredentials/dbToken.rds")
+fitbitApiInfo <- readRDS("apiCredentials/fitbitApiInfo.rds")
