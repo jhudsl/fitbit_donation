@@ -22,10 +22,8 @@ source("shiny_app/helperFuncs/firebaseHelpers.R")
 source("shiny_app/helperFuncs/downloadDays.R")
 source("shiny_app/helperFuncs/apiLimitMessage.R")
 
-
-# API Info from encripted vault. 
+# Load all the super secret api info. 
 source("shiny_app/helperFuncs/loadApiCredentials.R")
-source("shiny_app/api_keys.R")
 
 ui <- fluidPage(
   useShinyjs(),
@@ -61,7 +59,7 @@ server <- function(input, output) {
   disableTabs()
 
   # Fitbit authentication button. 
-  loginButton <- callModule(shinyLogin, "fitbit_login", api_info = api_keys)
+  loginButton <- callModule(shinyLogin, "fitbit_login", api_info = fitbitApiInfo)
   
   # Initialize a holder for the user tags function. This allows us to be able to 
   # call an observerEvent on it but also call it within another observe event as well. Hacky and probably not the best way.

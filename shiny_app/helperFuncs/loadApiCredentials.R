@@ -27,7 +27,16 @@
 # add_secret("dbToken", dbToken, users = c("n.strayer@vanderbilt.edu"), vault = vault)
 # dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
 
-library(secret)
-vault <- here::here("apiVault")
-firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
-dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
+
+######## Code using encription #########
+# library(secret)
+# vault <- here::here("apiVault")
+# firebaseToken <- get_secret("firebaseToken", key = local_key(), vault = vault)
+# dbToken <- get_secret("dbToken", key = local_key(), vault = vault)
+
+
+####### Code using serialized rds files ##########
+
+firebaseToken <- readRDS(here::here("shiny_app/apiCredentials/firebaseToken.rds"))
+dbToken <- readRDS(here::here("shiny_app/apiCredentials/dbToken.rds"))
+fitbitApiInfo <- readRDS(here::here("shiny_app/apiCredentials/fitbitApiInfo.rds"))
