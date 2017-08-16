@@ -12,7 +12,12 @@ fileNamer <- function(userId, start, end) {
 
 uploadDataToDropbox <- function(data, dbToken, csvDest){
   try({
-    write_csv(data, csvDest) #write the csv to server
+    # Make sure if we're uploading no tags to not try and write list to csv. 
+    if(length(data) == 0){
+      write_csv(dplyr::data_frame(), csvDest) #write the csv to server
+    } else {
+      write_csv(data, csvDest)
+    }
     drop_upload(csvDest, "apps/fitbitDonation/userData/", dtoken = dbToken) #upload to dropbox too.
   })
 }
